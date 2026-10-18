@@ -35,6 +35,7 @@ jobs:
           node tests/recall-swipe.cjs
           node tests/gemini-client.cjs
           node tests/capture-save.cjs
+          node tests/device-setup.cjs
       - run: npm run android:sync
       - run: chmod +x android/gradlew
       - name: Compile pull request APK
