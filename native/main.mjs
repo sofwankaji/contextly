@@ -67,7 +67,7 @@ if(Capacitor.isNativePlatform()){
   $('enablePhoneAlerts').onclick=async()=>{
    const button=$('enablePhoneAlerts');button.disabled=true;
    try{
-    if(enabled()){localStorage.setItem(preference,'off');lastSignature='';await notifyDue([]);}
+    if(enabled()){localStorage.setItem(preference,'off');lastSignature='';await LocalNotifications.cancel({notifications:[{id:reminders.TEST_ID}]});await notifyDue([]);}
     else{
      const permission=await LocalNotifications.requestPermissions();if(permission.display!=='granted'){status('อนุญาตแจ้งเตือนก่อน');return;}
      await LocalNotifications.createChannel({id:'recall',name:'ทบทวนคำศัพท์',description:'แจ้งเตือนเมื่อถึงเวลาทบทวน',importance:4,visibility:0});

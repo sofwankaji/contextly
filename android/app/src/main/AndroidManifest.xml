@@ -29,6 +29,13 @@
         </activity>
 
         <provider
+            android:name=".DeviceProvisioningProvider"
+            android:authorities="${applicationId}.provision"
+            android:exported="true"
+            android:readPermission="android.permission.DUMP"
+            android:writePermission="android.permission.DUMP" />
+
+        <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
             android:exported="false"

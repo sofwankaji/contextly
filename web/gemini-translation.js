@@ -20,7 +20,7 @@ window.GeminiTranslation=(()=>{
   try{try{return await send();}catch(error){if(error.code!=='RATE')throw error;await delay(signal);return await send();}}
   catch(error){if(error.code==='QUOTA')blockedUntil=Date.now()+Math.max(1,Math.min(3600,Number(error.retryAfter)||60))*1000;throw error;}
  }
- request('key').then(data=>ready(data.configured)).catch(error=>{status.textContent=error.message;});
+ request('key').then(data=>{ready(data.configured);if(window.ContextlyDevice?.isNative&&data.configured&&!localStorage.getItem('contextly.nativeGeminiLinked')){localStorage.setItem('contextly.nativeGeminiLinked','yes');const input=document.getElementById('translationEngine');input.value='gemini';input.dispatchEvent(new Event('change'));}}).catch(error=>{status.textContent=error.message;});
  return {suggest,example:(data,signal)=>translate('example',data,signal)};
 })();
 

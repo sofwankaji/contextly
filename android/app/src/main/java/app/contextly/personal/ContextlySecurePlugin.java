@@ -38,13 +38,12 @@ import org.json.JSONObject;
 /** Device-owned key. No API exports plaintext key material to JavaScript. */
 @CapacitorPlugin(name = "ContextlySecure")
 public class ContextlySecurePlugin extends Plugin {
-    private static final String ALIAS = "contextly-gemini-v1";
     private static final String[] MODELS = {"gemini-3.1-flash-lite", "gemini-3.6-flash"};
     private final ExecutorService executor = Executors.newFixedThreadPool(2);
     private final Map<String, HttpURLConnection> connections = new ConcurrentHashMap<>();
     private final Map<String, Boolean> canceled = new ConcurrentHashMap<>();
     private final Set<String> active = ConcurrentHashMap.newKeySet();
-    private final AtomicLong revision = new AtomicLong();
+    private final AtomicLong revision = DeviceKeyVault.revision;
     private TextToSpeech voice;
     private boolean voiceReady;
     private PluginCall waitingVoice;
@@ -87,36 +86,15 @@ public class ContextlySecurePlugin extends Plugin {
     }
 
     private SharedPreferences preferences() {
-        return getContext().getSharedPreferences("contextly-secrets", android.content.Context.MODE_PRIVATE);
-    }
-
-    private SecretKey encryptionKey() throws Exception {
-        KeyStore store = KeyStore.getInstance("AndroidKeyStore");
-        store.load(null);
-        if (!store.containsAlias(ALIAS)) {
-            KeyGenerator generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
-            generator.init(new KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build());
-            generator.generateKey();
-        }
-        return (SecretKey) store.getKey(ALIAS, null);
+        return DeviceKeyVault.preferences(getContext());
     }
 
     private synchronized void saveKey(String value) throws Exception {
-        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        cipher.init(Cipher.ENCRYPT_MODE, encryptionKey());
-        byte[] encrypted = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));
-        if (!preferences().edit().putString("iv", Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP))
-            .putString("sealed", Base64.encodeToString(encrypted, Base64.NO_WRAP)).commit()) throw new Exception("store");
-        revision.incrementAndGet();
+        DeviceKeyVault.save(getContext(), value);
     }
 
     private synchronized String readKey() throws Exception {
-        String sealed = preferences().getString("sealed", null), iv = preferences().getString("iv", null);
-        if (sealed == null || iv == null) return null;
-        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        cipher.init(Cipher.DECRYPT_MODE, encryptionKey(), new GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)));
-        return new String(cipher.doFinal(Base64.decode(sealed, Base64.NO_WRAP)), StandardCharsets.UTF_8);
+        return DeviceKeyVault.read(getContext());
     }
 
     @PluginMethod
@@ -166,7 +144,7 @@ public class ContextlySecurePlugin extends Plugin {
         revision.incrementAndGet();
         connections.values().forEach(HttpURLConnection::disconnect);
         connections.clear();
-        preferences().edit().remove("sealed").remove("iv").apply();
+        DeviceKeyVault.clear(getContext());
         JSObject result = new JSObject();
         result.put("configured", false);
         call.resolve(result);

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="contextly_canvas">#101214</color>
+    <color name="colorPrimary">#191C20</color>
+    <color name="colorPrimaryDark">#101214</color>
+    <color name="colorAccent">#D8C8A9</color>
+</resources>
