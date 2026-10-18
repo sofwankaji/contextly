@@ -1,0 +1,18 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
+const nodes={};for(const id of ['sourceSentence','sentenceTranslation','meaning','sentenceTranslationProvider','meaningTranslationProvider','liveTranslationStatus'])nodes[id]={value:'',textContent:'',dataset:{},handlers:{},hidden:false,classList:{toggle(name,value){if(name==='hidden')nodes[id].hidden=value;}},addEventListener(name,fn){this.handlers[name]=fn;}};
+let next=0;const timers=new Map(),requests=[];
+const context={window:{OnlineTranslation:{provider:()=> 'gemini'}},document:{getElementById:id=>nodes[id]},AbortController,setTimeout(fn,delay){timers.set(++next,{fn,delay});return next;},clearTimeout:id=>timers.delete(id),updateSaveState(){},saveDraft(){},ContextMeaning:{translateSentenceResult:(sentence,signal)=>new Promise(resolve=>requests.push({sentence,signal,resolve}))}};
+vm.createContext(context);vm.runInContext(fs.readFileSync('web/translation-status.js','utf8'),context);vm.runInContext(fs.readFileSync('web/live-translation.js','utf8'),context);
+const status=context.window.TranslationStatus;
+function input(value){nodes.sourceSentence.value=value;nodes.sentenceTranslation.value='';status.clear('sentenceTranslation');nodes.sourceSentence.handlers.input();}
+function flush(){const [id,timer]=[...timers].find(([,t])=>t.delay===800);timers.delete(id);return timer.fn();}
+(async()=>{
+ input('First sentence.');const first=flush();input('Latest sentence.');const latest=flush();requests[0].resolve({sentenceTranslation:'เก่า',provider:'gemini'});await first;assert.equal(nodes.sentenceTranslationProvider.textContent,'','stale provider not applied');
+ requests[1].resolve({sentenceTranslation:'ล่าสุด',provider:'google',preview:true});await latest;assert.equal(nodes.sentenceTranslationProvider.textContent,'Google Translate · แปลเร็ว','actual preview provider visible with Gemini selected');
+ nodes.meaning.value='ความหมาย';status.set('meaning',{provider:'gemini'});assert.equal(nodes.meaningTranslationProvider.textContent,'Gemini');status.restore('meaning',status.read('meaning'));assert.match(nodes.meaningTranslationProvider.textContent,/Gemini · คำแปลเดิม/);
+ status.set('meaning',{provider:'google',fallback:true,cached:true});assert.equal(nodes.meaningTranslationProvider.textContent,'Google Translate · สำรอง · คำแปลเดิม');status.restore('meaning',null);assert.match(nodes.meaningTranslationProvider.textContent,/ไม่ระบุตัวแปล/,'legacy draft is not guessed from selected model');
+ nodes.meaning.handlers.input();assert.equal(nodes.meaningTranslationProvider.textContent,'แก้ไขเอง');
+ input('Word response wins.');const pending=flush();nodes.sentenceTranslation.value='ประโยคจาก Gemini';status.set('sentenceTranslation',{provider:'gemini'});requests[2].resolve({sentenceTranslation:'ตัวอย่าง Google',provider:'google',preview:true});await pending;assert.equal(nodes.sentenceTranslation.value,'ประโยคจาก Gemini');assert.equal(nodes.sentenceTranslationProvider.textContent,'Gemini','late preview cannot overwrite Gemini provenance');
+ input('Manual edit wins.');const manual=flush();nodes.sentenceTranslation.value='แก้เอง';nodes.sentenceTranslation.handlers.input();requests[3].resolve({sentenceTranslation:'ตัวอย่าง Google',provider:'google',preview:true});await manual;assert.equal(nodes.sentenceTranslationProvider.textContent,'แก้ไขเอง');assert.equal(nodes.sentenceTranslation.value,'แก้เอง');
+ console.log('PASS: actual preview/word/fallback providers, cached and legacy drafts, manual edits, stale responses and preview-versus-Gemini race.');
+})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,0 +1,21 @@
+{
+  "appId": "app.contextly.personal",
+  "appName": "Contextly",
+  "webDir": "mobile-dist",
+  "loggingBehavior": "none",
+  "server": {
+    "hostname": "localhost",
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_recall",
+      "iconColor": "#D8C8A9"
+    }
+  }
+}

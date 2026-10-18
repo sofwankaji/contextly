@@ -1,0 +1,14 @@
+const assert=require('assert/strict'),api=require('../native/reminders.cjs');
+const created=Date.UTC(2026,9,18,12),word={id:'word-1',word:'give up',createdAt:created,dueAt:created+3*api.DAY,history:[]};
+const original=JSON.stringify(word),first=api.plan([word],created);
+assert.deepEqual(first.notifications.map(note=>note.extra.dueAt),[created+3*api.DAY,created+7*api.DAY]);assert.equal(JSON.stringify(word),original,'planning never mutates vocabulary');
+assert.deepEqual(api.plan([word],created).notifications.map(note=>note.id),first.notifications.map(note=>note.id));assert(first.notifications.every(note=>note.id>0&&note.id<2147483647&&note.id!==api.TEST_ID));
+assert.equal(api.plan([word],created+4*api.DAY).notifications.length,1,'7-day reminder remains scheduled without reopening on day 3');
+assert.equal(api.plan([{...word,practiceHistory:[{rating:'Good'}]}],created).notifications.length,2,'early practice retains the 3/7-day plan');
+const rated={...word,history:[{rating:'Again'}],dueAt:created+4*api.DAY},changed=api.plan([rated],created).notifications;
+const diff=api.changes(first.notifications,changed);assert.equal(diff.cancel.length,2);assert.equal(diff.schedule.length,1,'rating replaces stale reminders');
+assert.equal(api.changes([...changed,{id:api.TEST_ID,extra:{kind:'test'}}],changed).cancel.length,0,'test notification is not canceled as a vocabulary reminder');
+assert.equal(api.changes(changed,changed).schedule.length,0,'identical refresh does not reset alarms');
+assert.equal(api.changes(changed,[]).cancel.length,1,'deleted word/disabled alerts cancel pending reminders');
+assert.equal(api.plan([{...word,dueAt:NaN,createdAt:NaN}],created).notifications.length,0);
+console.log('PASS: local 3/7-day alarms, stable IDs, early practice, rating/deletion reconciliation and preserved data.');

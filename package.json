@@ -1,0 +1,22 @@
+{
+  "name": "contextly-personal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal Android vocabulary app with local reminders and Gemini",
+  "scripts": {
+    "android:prepare": "node scripts/build-android.cjs",
+    "android:sync": "npm run android:prepare && cap sync android",
+    "test:native": "node tests/native-protocol.cjs && node tests/native-reminders.cjs && node tests/native-updates.cjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/browser": "8.0.5",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/local-notifications": "8.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.4.3",
+    "esbuild": "0.28.2"
+  }
+}

@@ -1,0 +1,14 @@
+const assert=require('assert/strict'),api=require('../native/gemini-protocol.cjs');
+const input={word:'gave up',sentence:'She gave it up after several attempts.',parts:[{start:4,length:4},{start:12,length:2}],meaning:'ยอมแพ้'};
+assert.equal(api.validateInput(input).parts.length,2);
+assert.throws(()=>api.validateInput({...input,parts:[{start:4,length:4},{start:5,length:3}]}));
+assert.throws(()=>api.validateInput({...input,word:'give up'}));
+const body=api.makeBody('translate',{...input,key:'never-bundle-this-key'});assert(!JSON.stringify(body).includes('never-bundle-this-key'));assert(body.systemInstruction.parts[0].text.includes('exact sentence context'));assert.equal(body.generationConfig.responseMimeType,'application/json');
+const response=value=>({candidates:[{content:{parts:[{text:JSON.stringify(value)}]}}]});
+const translation=api.readResponse(response({meaning:'ยอมแพ้',sentenceTranslation:'เธอยอมแพ้หลังจากพยายามหลายครั้ง'}),'translate',input,api.models[0]);assert.equal(translation.provider,'gemini');
+const example={example:'After several setbacks, the team gave up on the project.',exampleTranslation:'หลังเจออุปสรรคหลายครั้ง ทีมก็ยอมแพ้กับโครงการนี้'};
+assert.equal(api.readResponse(response(example),'example',input,api.models[0]).example,example.example);
+assert.throws(()=>api.readResponse(response({...example,example:input.sentence}),'example',input,api.models[0]));
+assert.throws(()=>api.readResponse(response({...example,example:'The team continued working on the project.'}),'example',input,api.models[0]));
+assert.throws(()=>api.readResponse(response({meaning:'<script>',sentenceTranslation:'คำแปล'}),'translate',input,api.models[0]));
+console.log('PASS: native Gemini context/selection, structured prompts, safe results and key-free request bodies.');

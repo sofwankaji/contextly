@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101214"><link rel="manifest" href="manifest.webmanifest"><title>Contextly — Daily Recall</title>
+<style>
+@font-face{font-family:Prompt;src:url('./fonts/Prompt-400.ttf') format('truetype');font-weight:400;font-display:swap}
+@font-face{font-family:Prompt;src:url('./fonts/Prompt-500.ttf') format('truetype');font-weight:500;font-display:swap}
+@font-face{font-family:Prompt;src:url('./fonts/Prompt-600.ttf') format('truetype');font-weight:600;font-display:swap}
+@font-face{font-family:Prompt;src:url('./fonts/Prompt-700.ttf') format('truetype');font-weight:700;font-display:swap}
+</style><link rel="stylesheet" href="recall.css?v=51"><link rel="stylesheet" href="premium.css?v=51"></head><body><main><header class="app-header"><h1>contextly<span class="brand-dot">.</span></h1><button type="button" data-page="settings" class="header-settings secondary" aria-label="ตั้งค่า" title="ตั้งค่า"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></svg></button></header><nav aria-label="เมนูหลัก"><button data-page="add"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg><span>เพิ่มคำ</span></button><button data-page="today" class="secondary"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="16" rx="3"/><path d="M9 2h8a4 4 0 0 1 4 4v10M9 11h6M9 15h4"/></svg><span>Recall</span> <span id="dueBadge" class="due-badge hidden"></span></button><button data-page="library" class="secondary"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16M9 5v15M14 4v16M18 4l3 15"/></svg><span>คลังคำ</span></button><button data-page="writing" class="secondary"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 5 5-12 12H4v-5Z"/><path d="m14 5 5 5M4 20h16"/></svg><span>แต่งประโยค</span></button></nav><aside id="dueNotice" class="due-notice hidden" role="status"><span id="dueNoticeText"></span><button id="openDueRecall" class="secondary" type="button">ทบทวน</button></aside>
+<section id="today" class="panel hidden"><h2>Recall</h2><div class="recall-age-filters" role="group" aria-label="ช่วงวันที่บันทึกคำ"><button type="button" data-recall-age="all" aria-pressed="true">ทั้งหมด</button><button type="button" data-recall-age="today" aria-pressed="false">วันนี้</button><button type="button" data-recall-age="three" aria-pressed="false">3–6 วันที่แล้ว</button><button type="button" data-recall-age="seven" aria-pressed="false">7 วันขึ้นไป</button></div><p id="progress" class="muted" role="status">กำลังโหลด...</p><div id="review"></div></section>
+<section id="add" class="panel">
+<div class="page-heading capture-heading"><h2>เพิ่มคำ</h2><div class="capture-model"><label for="captureTranslationEngine" class="visually-hidden">โมเดลแปล</label><select id="captureTranslationEngine" aria-label="โมเดลแปล"><option value="mymemory">MyMemory</option><option value="google">Google Translate</option><option value="gemini">Gemini</option></select></div></div>
+<div class="capture-layout"><div class="capture-workspace">
+<div class="sentence-composer"><div class="sentence-heading"><label for="sourceSentence">ประโยคภาษาอังกฤษ</label><button id="readSentence" class="icon-button" type="button" aria-label="ฟังทั้งประโยค" disabled></button></div>
+<div class="inline-editor"><div id="sentenceGhost" class="sentence-ghost" aria-hidden="true"></div><textarea id="sourceSentence" lang="en" spellcheck="false" autocomplete="off" placeholder="พิมพ์หรือวางประโยคภาษาอังกฤษ…" rows="2"></textarea></div>
+<p id="sentenceVoiceStatus" class="muted" role="status"></p>
+<div id="translationDetails" class="live-translation hidden"><div class="translation-heading"><div class="translation-label"><span>ไทย</span><span id="sentenceTranslationProvider" class="translation-provider hidden" role="status" aria-label="ตัวแปลประโยค"></span></div><button id="editTranslation" type="button" class="text-button" aria-expanded="false" aria-controls="sentenceTranslation">แก้ไข</button></div><p id="sentenceTranslationPreview" lang="th"></p><label for="sentenceTranslation" class="visually-hidden">คำแปลประโยค</label><textarea id="sentenceTranslation" class="hidden" rows="2"></textarea><p id="liveTranslationStatus" class="muted" role="status"></p></div></div>
+<div id="completionSuggestions" class="hidden" role="group" aria-label="คำแนะนำตามบริบท"></div><button id="acceptCompletion" type="button" class="secondary hidden">เติมคำ</button><p id="completionHint" class="visually-hidden" role="status"></p>
+<div class="capture-tools"><span class="token-label" id="tokenInstruction">แตะคำที่อยากจำ</span><button id="clearSelection" class="text-button hidden" type="button">ล้างที่เลือก</button></div><div id="tokens" class="tokens" role="group" aria-labelledby="tokenInstruction"></div>
+</div>
+<div id="chosen" class="selection-panel hidden"><div class="selected-heading"><strong id="chosenWord"></strong><div id="captureWordTools"></div></div>
+<div class="meaning-heading"><label for="meaning">ความหมาย</label><label class="auto-toggle"><input id="autoMeaning" type="checkbox" checked>Auto</label></div><input id="meaning" autocomplete="off" placeholder="คำแปลจะเติมให้อัตโนมัติ"><p id="meaningTranslationProvider" class="translation-provider hidden" role="status" aria-label="ตัวแปลความหมาย"></p><p id="autoTranslationStatus" role="status"></p>
+<button id="save" class="save-primary" type="button"><span>บันทึกคำ</span><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg></button>
+<details class="more-details"><summary>ตัวเลือกเพิ่มเติม</summary><div class="row lookup-row"><a id="translateSentence" class="lookup-link" target="_blank" rel="noopener noreferrer">เว็บแปล ↗</a><a id="lookupWord" class="lookup-link" target="_blank" rel="noopener noreferrer">พจนานุกรม ↗</a><button id="retryTranslation" type="button" class="secondary">แปลใหม่</button></div></details></div></div>
+<p id="captureMessage" class="notice" role="status"></p></section>
+<section id="library" class="panel hidden"><div class="page-heading"><h2>คลังคำ</h2><small id="libraryCount"></small></div><label for="search" class="visually-hidden">ค้นหาคำศัพท์</label><input id="search" class="library-search" placeholder="ค้นหา"><div class="library-filters" role="group" aria-label="กรองคำศัพท์"><button data-library-filter="all" aria-pressed="true">ทั้งหมด</button><button data-library-filter="due" aria-pressed="false">ถึงกำหนด</button><button data-library-filter="hard" aria-pressed="false">จำยาก</button></div><div id="wordList"></div></section>
+<section id="writing" class="panel hidden"><div id="writingContent"></div></section>
+<section id="settings" class="panel hidden"><div class="page-heading"><h2>ตั้งค่า</h2></div><div class="settings-group"><h3>การแปล</h3><label for="translationEngine">ตัวแปล</label><select id="translationEngine"><option value="mymemory">MyMemory</option><option value="google">Google Translate</option><option value="gemini">Gemini</option></select></div><div class="settings-group"><h3>Gemini</h3><p id="geminiStatus" role="status">กำลังตรวจการเชื่อมต่อ…</p><div id="geminiKeyForm"><label for="geminiKey">API key</label><input id="geminiKey" type="password" autocomplete="off" maxlength="200" placeholder="วาง key จาก Google AI Studio"><label class="gemini-confirm"><input id="geminiFreeTier" type="checkbox">โปรเจกต์นี้ไม่เปิด billing</label><button id="connectGemini" type="button">เชื่อมต่อ</button><p id="geminiStorageInfo" class="muted">เก็บ key แบบเข้ารหัสบนเซิร์ฟเวอร์ · แอปตรวจสถานะ billing ไม่ได้</p><a href="https://aistudio.google.com/api-keys" target="_blank" rel="noopener noreferrer">สร้าง key ↗</a></div><button id="disconnectGemini" class="secondary hidden" type="button">ยกเลิกเชื่อมต่อ</button></div><div class="settings-group"><h3>แจ้งเตือน</h3><div class="row"><button id="enablePhoneAlerts" class="secondary">เปิดแจ้งเตือน</button><button id="testPhoneAlerts" class="secondary" disabled>ทดสอบ</button></div><p id="phoneAlertsStatus" class="muted" role="status"></p></div><div class="settings-group"><h3>ข้อมูล</h3><button id="export">สำรองข้อมูล</button><label for="importFile">นำเข้า</label><input type="file" id="importFile" accept=".json,application/json"><p id="settingsMessage" role="status"></p></div><details class="settings-footnote"><summary>ข้อมูลและเครดิต</summary><p>คำศัพท์เก็บในเครื่อง · แจ้งเตือนส่งเฉพาะเวลาและช่องทางของอุปกรณ์</p><p>ส่งประโยคที่กำลังเพิ่มไปยังตัวแปลที่เลือก · คำศัพท์ที่บันทึกยังเก็บในเครื่อง</p><p>Google Translate ผ่านช่องทางเว็บที่ไม่เป็นทางการ อาจจำกัดคำขอ · Gemini ส่งเฉพาะประโยคและคำที่กำลังเลือกหรือการ์ดที่เปิดไป Google เพื่อแปลและสร้างตัวอย่าง</p><p><a href="https://dictionaryapi.dev/" target="_blank" rel="noopener noreferrer">Free Dictionary ↗</a> · <a href="vendor/SOURCES.txt" target="_blank" rel="noopener noreferrer">เครดิต ↗</a></p></details>
+</section></main>
+<script src="vendor/compromise-14.18.0.js"></script><script src="word-selection.js?v=51"></script><script src="word-tools.js?v=51"></script><script src="context-meaning.js?v=51"></script><script src="auto-meaning.js?v=51"></script><script src="translation-status.js?v=51"></script><script src="recall-plan.js?v=51"></script><script src="word-progress.js?v=51"></script><script src="word-examples.js?v=51"></script><script src="grammar-suggest.js?v=51"></script><script src="context-suggest.js?v=51"></script>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);let db,selected="",selectedOffset=0,selectedParts=[],queue=[],reviewed=0;const SESSION=2;const now=()=>Date.now();const day=86400000;
+function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function tx(store,mode="readonly"){return db.transaction(store,mode).objectStore(store)}
+function getAll(){return new Promise((resolve,reject)=>{const q=tx("words").getAll();q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)})}
+function put(word){return putMany([word]);}
+function putMany(words){return new Promise((resolve,reject)=>{
+ const transaction=db.transaction("words","readwrite");transaction.oncomplete=()=>resolve();transaction.onerror=()=>reject(transaction.error||Error("บันทึกข้อมูลไม่ได้"));transaction.onabort=()=>reject(transaction.error||Error("การบันทึกถูกยกเลิก"));
+ try{const store=transaction.objectStore("words");for(const word of words)store.put(word);}catch(e){transaction.abort();reject(e);}
+});}
+function remove(id){return new Promise((resolve,reject)=>{const q=tx("words","readwrite").delete(id);q.onsuccess=()=>resolve();q.onerror=()=>reject(q.error)})}
+function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open("contextly",1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains("words"))r.result.createObjectStore("words",{keyPath:"id"})};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+function page(name){for(const id of ["today","add","library","writing","settings"])$(id).classList.toggle("hidden",id!==name);document.querySelectorAll("[data-page]").forEach(b=>{b.classList.toggle("secondary",b.dataset.page!==name);b.setAttribute("aria-current",b.dataset.page===name?"page":"false")});if(document.activeElement?.matches("input,textarea,select"))document.activeElement.blur();window.scrollTo?.({top:0,behavior:"auto"});if(name==="library")renderLibrary();if(name==="today")loadReview();if(name==="add"){window.SmartCompletion?.learnSavedSentences();window.PremiumUI?.syncCapture();}if(name==="writing")window.WritingUI?.render()}
+document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>page(b.dataset.page)));
+function tokenize(){
+ window.WordTools?.syncSentenceReader();
+ const sentence=$("sourceSentence").value,parts=[...sentence.matchAll(/[A-Za-z]+(?:['’-][A-Za-z]+)*|[^A-Za-z]+/g)];
+ $("tokens").innerHTML=parts.map(m=>/^[A-Za-z]/.test(m[0])?'<button type="button" class="token'+(selectedParts.some(p=>p.start===m.index)?' active':'')+'" aria-pressed="'+selectedParts.some(p=>p.start===m.index)+'" data-word="'+escapeHtml(m[0].toLowerCase())+'" data-offset="'+m.index+'">'+escapeHtml(m[0])+'</button>':escapeHtml(m[0])).join("");
+ $("tokens").querySelectorAll("[data-word]").forEach(b=>b.addEventListener("click",()=>selectToken(b.dataset.word,Number(b.dataset.offset))));
+}
+function selectToken(word,offset){
+ const sentence=$("sourceSentence").value,next=WordSelection.toggle(sentence,selectedParts,offset),label=WordSelection.label(sentence,next);
+ if(label.length>80){$("captureMessage").textContent="เลือกคำรวมกันไม่เกิน 80 ตัวอักษร";return;}
+ selectedParts=next;choose(label,next[0]?.start||0);$("tokens").querySelector('[data-offset="'+offset+'"]')?.focus({preventScroll:true});if(label&&window.matchMedia?.("(max-width:600px)").matches)$("chosen").scrollIntoView({block:"nearest",behavior:window.matchMedia?.("(prefers-reduced-motion:reduce)").matches?"auto":"smooth"});
+}
+function choose(w,offset=0){cancelTranslation();selectedOffset=offset;
+ $("captureMessage").textContent="";selected=w;completion="";$("chosenWord").textContent=w;$("chosen").classList.toggle("hidden",!w);$("meaning").value="";window.TranslationStatus?.clear("meaning");updateLookupLinks();tokenize();renderCompletion();saveDraft();window.PremiumUI?.syncCapture();
+ if(w){WordTools.mount($("captureWordTools"),{word:w,sentence:$("sourceSentence").value,selectedParts});if($("autoMeaning").checked)autoTranslate();}
+}
+function updateLookupLinks(){
+ const translation=new URL("https://translate.google.com/");translation.searchParams.set("sl","en");translation.searchParams.set("tl","th");translation.searchParams.set("text",$("sourceSentence").value.trim());translation.searchParams.set("op","translate");
+ $("translateSentence").href=translation.href;$("lookupWord").href="https://dictionary.cambridge.org/dictionary/english-thai/"+encodeURIComponent(selected);
+}
+let translationSerial=0,translationController=null,wordTranslationPending=false,captureSaving=false;
+function updateSaveState(){$("save").disabled=captureSaving||wordTranslationPending||!!window.LiveTranslation?.isPending();}
+function cancelTranslation(){translationSerial++;translationController?.abort();$("autoTranslationStatus").textContent="";$("retryTranslation").disabled=false;wordTranslationPending=false;updateSaveState();}
+try{$("autoMeaning").checked=localStorage.getItem("contextly.autoMeaning")!=="off"}catch{}
+$("autoMeaning").onchange=()=>{try{localStorage.setItem("contextly.autoMeaning",$("autoMeaning").checked?"on":"off")}catch{};cancelTranslation();if($("autoMeaning").checked&&selected)autoTranslate();};
+async function autoTranslate(){
+ if(!selected)return;translationController?.abort();const controller=new AbortController();translationController=controller;
+ const timeout=setTimeout(()=>controller.abort(),OnlineTranslation.provider()==='gemini'?50000:15000);const serial=++translationSerial,w=selected,offset=selectedOffset,sentence=$("sourceSentence").value,oldMeaning=$("meaning").value;
+ $("autoTranslationStatus").textContent="กำลังแปลด้วย "+(window.TranslationStatus?.name(OnlineTranslation.provider())||"ตัวแปล")+"…";$("retryTranslation").disabled=true;wordTranslationPending=true;updateSaveState();
+ try{
+  const result=await ContextMeaning.suggest(w,sentence,offset,controller.signal,selectedParts);
+  if(serial!==translationSerial||selected!==w||selectedOffset!==offset||$("sourceSentence").value!==sentence)return;
+  if($("meaning").value===oldMeaning){$("meaning").value=result.meaning;window.TranslationStatus?.set("meaning",{...result,provider:result.meaningProvider||result.provider});saveDraft();}
+  if(!$("sentenceTranslation").value.trim()||((result.provider==="gemini"||result.contextAdjusted)&&$("sentenceTranslation").dataset.userEdited!=="yes")){$("sentenceTranslation").value=result.sentenceTranslation;window.TranslationStatus?.set("sentenceTranslation",result);saveDraft();}
+  $("autoTranslationStatus").textContent=result.notice||"";window.PremiumUI?.syncTranslation();
+ }catch(e){if(serial!==translationSerial)return;if(e.name==="AbortError"){$("autoTranslationStatus").textContent="หมดเวลารอ เปิดเว็บแปลแทนได้";return;}$("autoTranslationStatus").textContent=e.message;}
+ finally{clearTimeout(timeout);if(serial===translationSerial){$("retryTranslation").disabled=false;wordTranslationPending=false;updateSaveState();}}
+}
+$("retryTranslation").onclick=autoTranslate;
+$("sentenceTranslation").addEventListener("input",()=>{$("sentenceTranslation").dataset.userEdited="yes";});
+const draftKey="contextly.captureDraft.v1";
+function saveDraft(){try{sessionStorage.setItem(draftKey,JSON.stringify({sentence:$("sourceSentence").value,selected,selectedParts,offset:selectedOffset,meaning:$("meaning").value,translationEdited:$("sentenceTranslation").dataset.userEdited==="yes",sentenceTranslation:$("sentenceTranslation").value,meaningTranslationMeta:window.TranslationStatus?.read("meaning"),sentenceTranslationMeta:window.TranslationStatus?.read("sentenceTranslation")}))}catch{}}
+function restoreDraft(){try{
+ const draft=JSON.parse(sessionStorage.getItem(draftKey)||"null");if(!draft||typeof draft.sentence!=="string")return;$("sourceSentence").value=draft.sentence;$("sentenceTranslation").value=typeof draft.sentenceTranslation==="string"?draft.sentenceTranslation:"";
+ selectedParts=WordSelection.validate(draft.sentence,draft.selectedParts||WordSelection.legacy(draft.sentence,draft.selected||"",Number.isInteger(draft.offset)?draft.offset:draft.sentence.toLowerCase().indexOf(draft.selected||"")));
+ selected=WordSelection.label(draft.sentence,selectedParts);selectedOffset=selectedParts[0]?.start||0;
+ if(draft.translationEdited)$("sentenceTranslation").dataset.userEdited="yes";if(selected){$("chosenWord").textContent=selected;$("chosen").classList.remove("hidden");for(const id of ["meaning","sentenceTranslation"])$(id).value=typeof draft[id]==="string"?draft[id]:"";updateLookupLinks();WordTools.mount($("captureWordTools"),{word:selected,sentence:draft.sentence,selectedParts});}
+ window.TranslationStatus?.restore("meaning",draft.meaningTranslationMeta);window.TranslationStatus?.restore("sentenceTranslation",draft.sentenceTranslationMeta);
+ }catch{}}
+let completion="",candidate="",completionIndex=0;
+function renderCompletion(){window.SmartCompletion?.refresh();}
+function acceptCompletion(){window.SmartCompletion?.accept();}
+$("sourceSentence").addEventListener("input",()=>{cancelTranslation();selectedParts=[];selected="";$("sentenceTranslation").value="";delete $("sentenceTranslation").dataset.userEdited;window.TranslationStatus?.clear("sentenceTranslation");$("tokenInstruction").textContent="แตะคำที่อยากจำ";$("chosen").classList.add("hidden");tokenize();completionIndex=0;renderCompletion();window.PremiumUI?.syncCapture()});
+$("save").addEventListener("click",async()=>{
+ if(captureSaving||wordTranslationPending||window.LiveTranslation?.isPending())return;
+ const raw=$("sourceSentence").value,sentence=raw.trim(),word=selected,parts=selectedParts.map(p=>({...p})),meaning=$("meaning").value.trim(),translation=$("sentenceTranslation").value.trim();
+ if(!sentence){$("captureMessage").textContent="ใส่ประโยคก่อน";$("sourceSentence").focus();return;}
+ if(!word){$("captureMessage").textContent="แตะคำก่อนบันทึก";return;}
+ const unchanged=()=>$("sourceSentence").value===raw&&selected===word&&JSON.stringify(selectedParts)===JSON.stringify(parts)&&$("meaning").value.trim()===meaning&&$("sentenceTranslation").value.trim()===translation;
+ captureSaving=true;updateSaveState();$("captureMessage").textContent="กำลังบันทึก…";
+ try{
+  const all=await getAll(),existing=all.find(w=>w.word?.toLowerCase()===word&&w.sentence===sentence),leading=raw.length-raw.trimStart().length;
+  const item={...(existing||RecallPlan.initial(now())),id:existing?.id||(typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():"word-"+Date.now()+"-"+Math.random().toString(36).slice(2)),word,selectedParts:parts.map(p=>({start:p.start-leading,length:p.length})),sentence,sentenceTranslation:translation||existing?.sentenceTranslation||"",meaning:meaning||"รอเติมความหมาย",createdAt:existing?.createdAt||now(),dueAt:existing?.dueAt??now()+3*day,intervalDays:existing?.intervalDays??3,lastRating:existing?.lastRating||"",lapses:existing?.lapses||0,history:existing?.history||[]};
+  await put(item);window.SmartCompletion?.learnSentence(sentence);$("captureMessage").textContent="บันทึก "+word+" แล้ว";
+  if(unchanged()){selectedParts=[];selected="";$("chosen").classList.add("hidden");$("meaning").value="";completion="";candidate="";tokenize();renderCompletion();saveDraft();window.PremiumUI?.syncCapture();$("tokens").querySelector('[data-offset="'+parts[0]?.start+'"]')?.focus({preventScroll:true});}
+  renderLibrary();refreshReminders();
+ }catch(e){$("captureMessage").textContent="บันทึกไม่สำเร็จ: "+(e?.message||"ไม่สามารถเข้าถึงพื้นที่จัดเก็บ");}
+ finally{captureSaving=false;updateSaveState();}
+});
+function risk(w){return (w.lapses||0)*2+(w.lastRating==="Again"?5:w.lastRating==="Hard"?3:0)+Math.max(0,(now()-(w.dueAt||0))/day)}
+async function renderLibrary(){
+ try{
+  const words=await getAll(),q=$("search").value.trim().toLowerCase(),filter=window.PremiumUI?.libraryFilter()||"all";
+  const filtered=words.filter(w=>[w.word,w.meaning,w.sentence,w.sentenceTranslation].join(" ").toLowerCase().includes(q)&&(filter!=="due"||RecallPlan.due(w,now()))&&(filter!=="hard"||["Again","Hard"].includes(w.lastAssessment||w.lastRating))).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  $("libraryCount").textContent=words.length+" คำ";
+  $("wordList").innerHTML=filtered.length?filtered.map(w=>'<details class="library-word" data-memory="'+escapeHtml(w.lastAssessment||w.lastRating||'')+'" data-library-word="'+escapeHtml(w.id)+'"><summary><div class="library-word-text"><strong>'+escapeHtml(w.word)+'</strong><span>'+escapeHtml(w.meaning)+'</span></div><small class="library-word-status">'+(RecallPlan.due(w,now())?'ถึงกำหนด':shortDate(w.dueAt||now()))+'</small><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m6 9 6 6 6-6"/></svg></summary><div class="library-word-body"><p>'+recallContextHtml(w)+'</p>'+(w.sentenceTranslation?'<p class="muted">'+escapeHtml(w.sentenceTranslation)+'</p>':'')+'<div class="library-word-tools"></div><div class="library-learning"></div><div class="library-word-actions"><button data-library-card="'+escapeHtml(w.id)+'">เปิดการ์ด</button><button class="delete-word" data-delete="'+escapeHtml(w.id)+'">ลบ</button></div></div></details>').join(""):'<p class="muted">'+(words.length?'ไม่พบคำ':'ยังไม่มีคำศัพท์')+'</p>';
+  $("wordList").querySelectorAll("[data-library-word]").forEach(details=>details.ontoggle=()=>{if(details.open&&!details.dataset.voiceMounted){details.dataset.voiceMounted='yes';const word=words.find(w=>w.id===details.dataset.libraryWord);if(word){WordTools.mount(details.querySelector('.library-word-tools'),word);window.LearningUI?.mountLibrary(details,word);}}});
+  $("wordList").querySelectorAll("[data-library-card]").forEach(button=>button.onclick=()=>openCardById(button.dataset.libraryCard));
+  $("wordList").querySelectorAll("[data-delete]").forEach(button=>button.onclick=async()=>{if(confirm("ลบคำศัพท์นี้?")){try{await remove(button.dataset.delete);await renderLibrary();refreshReminders();}catch(error){$("wordList").textContent="ลบไม่สำเร็จ: "+error.message;}}});
+ }catch(error){$("wordList").textContent="อ่านข้อมูลไม่ได้: "+error.message;}
+}
+$("search").addEventListener("input",renderLibrary);
+$("export").onclick=async()=>{const data=JSON.stringify({app:"contextly",version:5,exportedAt:new Date().toISOString(),words:await getAll()},null,2);if(window.ContextlyDevice?.isNative){await window.ContextlyDevice.exportBackup(data);return;}const url=URL.createObjectURL(new Blob([data],{type:"application/json"}));const a=document.createElement("a");a.href=url;a.download="contextly-backup.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+$("importFile").onchange=async e=>{
+ try{
+  const file=e.target.files[0];if(!file)return;if(file.size>20*1024*1024)throw Error("ไฟล์ใหญ่เกินไป");
+  const data=JSON.parse(await file.text());if(!Array.isArray(data.words)||data.words.length>50000)throw Error("รูปแบบไฟล์ไม่ถูกต้อง");
+  const words=data.words.map(w=>{
+   if(!w||typeof w.word!=="string"||typeof w.meaning!=="string"||typeof w.sentence!=="string")throw Error("ข้อมูลคำศัพท์ไม่ถูกต้อง");
+   if(w.sentenceTranslation!==undefined&&(typeof w.sentenceTranslation!=="string"||w.sentenceTranslation.length>10000))throw Error("คำแปลประโยคไม่ถูกต้อง");
+   if(w.selectedParts!==undefined&&(!Array.isArray(w.selectedParts)||WordSelection.validate(w.sentence,w.selectedParts).length!==w.selectedParts.length||WordSelection.label(w.sentence,w.selectedParts)!==w.word.toLowerCase()))throw Error("ตำแหน่งคำไม่ถูกต้อง");
+   if(w.practiceHistory!==undefined&&!Array.isArray(w.practiceHistory))throw Error("ประวัติการฝึกไม่ถูกต้อง");if(w.scheduleVersion===1&&(!Number.isInteger(w.reviewStep)||w.reviewStep<0))throw Error("รอบทบทวนไม่ถูกต้อง");
+   const id=typeof w.id==="string"&&w.id?w.id:(crypto.randomUUID?crypto.randomUUID():"word-"+Date.now()+"-"+Math.random().toString(36).slice(2));
+   return {...w,id,dueAt:Number.isFinite(Number(w.dueAt))&&Number(w.dueAt)>0?Number(w.dueAt):now(),history:Array.isArray(w.history)?w.history:[]};
+  });
+  await putMany(words);$("settingsMessage").textContent="นำเข้าแล้ว "+words.length+" คำ";refreshReminders();
+ }catch(error){$("settingsMessage").textContent="นำเข้าไม่สำเร็จ: "+error.message;}
+};
+for(const id of ["sourceSentence","meaning","sentenceTranslation"])$(id).addEventListener("input",saveDraft);
+$("translateSentence").addEventListener("click",saveDraft);$("lookupWord").addEventListener("click",saveDraft);window.addEventListener("pagehide",saveDraft);
+document.addEventListener("DOMContentLoaded",()=>{openDB().then(d=>{db=d;refreshReminders();page("add");restoreDraft();window.PremiumUI?.syncCapture();if(window.matchMedia?.("(pointer:fine)").matches&&!new URL(location.href).searchParams.has("card"))$("sourceSentence").focus({preventScroll:true});if($("sourceSentence").value.trim()&&!$("sentenceTranslation").value)LiveTranslation.refresh();tokenize();completionIndex=0;renderCompletion();window.ContextlyDevice?.ready({getAll,openCard:id=>openCardById(id)});if("serviceWorker"in navigator&&window.isSecureContext)navigator.serviceWorker.register("./sw.js").catch(()=>{})}).catch(e=>{$("progress").textContent="ไม่สามารถเปิด IndexedDB: "+e.message});});
+</script><script src="gemini-translation.js?v=51"></script><script src="online-translation.js?v=51"></script><script src="recall-example.js?v=51"></script><script src="recall-swipe.js?v=51"></script><script src="recall-ui.js?v=51"></script><script src="live-translation.js?v=51"></script><script src="app-alerts.js?v=51"></script><script src="premium-ui.js?v=51"></script><script src="smart-completion.js?v=51"></script><script src="writing-ui.js?v=51"></script><script src="learning-ui.js?v=51"></script></body></html>
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,34 @@
+Compromise 14.18.0 — https://github.com/spencermountain/compromise — MIT.
+Downloaded from the npm registry; SHA-512 matches published integrity.
+License: compromise-LICENSE.txt
+
+Suggestion frequency data — first20hours/google-10000-english,
+google-10000-english-no-swears.txt, revision
+d0736d492489198e4f9d650c7ab4143bc14c1e9e.
+https://github.com/first20hours/google-10000-english
+Derived from the Google Web Trillion Word Corpus and Peter Norvig's list;
+editing by Josh Kaufman. Educational/personal/research use is permitted
+as described in common-english-LICENSE.md; commercial use needs upstream
+licensing. No user sentence is sent to this repository or a suggestion API.
+suggest-examples.txt contains original, locally bundled usage examples.
+
+English US IPA — open-dict-data/ipa-dict
+https://github.com/open-dict-data/ipa-dict/tree/43c3570eb3553bdd19fccd2bd0091534889af023
+data/en_US.txt, split by first letter without changing pronunciations.
+Copyright (c) 2016 dohliam — MIT, ipa-dict-LICENSE.txt.
+US data based on lingz/cmudict-ipa and kylebgorman/syllabify.
+Upstream notices retained in cmudict-ipa-LICENSE.txt and cmudict-LICENSE.txt.
+
+Optional recordings/IPA fetched only after pressing Listen:
+https://dictionaryapi.dev/ — see each upstream recording's license.
+
+Prompt font — Cadson Demak, SIL Open Font License 1.1.
+https://github.com/google/fonts/tree/main/ofl/prompt
+License: ../fonts/OFL.txt. Native pronunciation uses Android TextToSpeech.
+
+Online translation: MyMemory or Google Translate (user-selected).
+Only the current capture sentence/selected text is sent to that provider.
+Google uses the public web translation endpoint; it is unofficial, has no
+service guarantee and can be limited or changed. No API key/billing account.
+Endpoint behavior reference: https://github.com/ssut/py-googletrans
+No code from that library is bundled.

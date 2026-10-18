@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Contextly</string>
+    <string name="title_activity_main">Contextly</string>
+    <string name="package_name">app.contextly.personal</string>
+    <string name="custom_url_scheme">app.contextly.personal</string>
+</resources>

@@ -1,0 +1,87 @@
+name: Android APK
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: contextly-android-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CONTEXTLY_VERSION_CODE: ${{ github.run_number }}
+      CONTEXTLY_VERSION_NAME: 1.0.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - run: npm ci
+      - name: Check local notifications, Gemini and APK updates
+        run: |
+          npm run test:native
+          node tests/recall-example.cjs
+          node tests/recall-swipe.cjs
+          node tests/gemini-client.cjs
+          node tests/capture-save.cjs
+      - run: npm run android:sync
+      - run: chmod +x android/gradlew
+      - name: Compile pull request APK
+        if: github.event_name == 'pull_request'
+        run: android/gradlew -p android assembleDebug --console=plain
+      - name: Prepare release signing
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/contextly.jks"
+      - name: Build signed release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          CONTEXTLY_KEYSTORE_PATH: ${{ runner.temp }}/contextly.jks
+          CONTEXTLY_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          CONTEXTLY_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          CONTEXTLY_KEY_ALIAS: contextly
+        run: |
+          android/gradlew -p android assembleRelease --console=plain
+          mkdir -p release
+          cp android/app/build/outputs/apk/release/app-release.apk "release/Contextly-$CONTEXTLY_VERSION_NAME.apk"
+          cp mobile-dist/app-version.json release/app-version.json
+      - name: Retain signed APK for publication
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: contextly-apk
+          path: release/
+          retention-days: 14
+  release:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: contextly-apk
+          path: release
+      - name: Publish the APK and version metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release-apk.cjs

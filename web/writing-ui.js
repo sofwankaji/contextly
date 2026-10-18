@@ -1,0 +1,26 @@
+window.WritingUI=(()=>{
+ let selectedId='',run=0;const drafts=new Map();
+ try{const saved=JSON.parse(sessionStorage.getItem('contextly.writingDrafts.v1')||'[]');if(Array.isArray(saved))for(const item of saved.slice(-100))if(Array.isArray(item)&&typeof item[0]==='string'&&typeof item[1]==='string'&&item[1].length<=4000)drafts.set(item[0],item[1]);}catch{}
+ const host=document.getElementById('writingContent');
+ function saveDraft(id,value){drafts.set(id,value);if(drafts.size>100)drafts.delete(drafts.keys().next().value);try{sessionStorage.setItem('contextly.writingDrafts.v1',JSON.stringify([...drafts]));}catch{}}
+ async function render(){
+  const request=++run;let words;try{words=(await getAll()).filter(WordProgress.fluent).sort((a,b)=>(b.fluentAt||0)-(a.fluentAt||0));}catch{host.textContent='อ่านคำศัพท์ไม่ได้ ลองใหม่อีกครั้ง';return;}if(request!==run)return;
+  const word=words.find(item=>item.id===selectedId)||words[0];selectedId=word?.id||'';
+  host.innerHTML='<div class="page-heading"><h2>แต่งประโยค</h2><small class="muted">'+words.length+' คำ</small></div>'+(words.length?'<div class="writing-picker" role="group" aria-label="คำที่จำได้">'+words.map(item=>'<button type="button" class="secondary" data-writing-word="'+escapeHtml(item.id)+'" aria-pressed="'+String(item.id===selectedId)+'">'+escapeHtml(item.word)+'</button>').join('')+'</div><div id="writingEditor"></div>':'<div class="writing-empty"><span class="memory-dot memory-good" aria-hidden="true"></span><p>กดสีเขียวในการ์ด แล้วมาฝึกใช้คำที่นี่</p><button id="writingGoRecall">Recall</button></div>');
+  if(!word){document.getElementById('writingGoRecall').onclick=()=>page('today');return;}
+  host.querySelectorAll('[data-writing-word]').forEach(button=>button.onclick=()=>{selectedId=button.dataset.writingWord;render();});
+  const editor=document.getElementById('writingEditor');editor.innerHTML='<div class="writing-word"><div class="word">'+escapeHtml(word.word)+'</div><p>'+escapeHtml(word.meaning)+'</p><div id="writingVoice"></div></div><label for="writingSentence">ประโยคของคุณ</label><textarea id="writingSentence" placeholder="ลองใช้คำนี้ในประโยคใหม่"></textarea><div id="writingSuggestions" class="writing-suggestions hidden" role="group" aria-label="คำแนะนำประโยค"></div><button id="saveWriting" class="save-primary">บันทึกประโยค</button><p id="writingStatus" class="muted" role="status"></p><details class="writing-context"><summary>บริบทเดิม</summary><p>'+recallContextHtml(word)+'</p>'+(word.sentenceTranslation?'<p class="muted">'+escapeHtml(word.sentenceTranslation)+'</p>':'')+'</details><div id="writingExamples"></div>';
+  const input=document.getElementById('writingSentence'),status=document.getElementById('writingStatus'),suggestions=document.getElementById('writingSuggestions'),save=document.getElementById('saveWriting');input.value=drafts.get(word.id)||'';
+  window.WordTools?.mount(document.getElementById('writingVoice'),word);window.WordExamples?.mount(document.getElementById('writingExamples'),word);
+  let timer,composing=false;
+  function recommend(){clearTimeout(timer);suggestions.replaceChildren();suggestions.classList.add('hidden');if(composing)return;timer=setTimeout(()=>{if(request!==run||document.activeElement!==input||input.selectionStart!==input.selectionEnd)return;const snapshot=input.value,caret=input.selectionStart,options=window.ContextSuggest?.suggest(snapshot,caret)||[];for(const item of options){const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=(item.correction?item.from+' → ':'')+item.word;button.title=item.reason||'';button.onmousedown=event=>event.preventDefault();button.onclick=()=>{if(input.value!==snapshot||input.selectionStart!==caret||input.selectionEnd!==caret)return;input.focus();input.setRangeText(item.word,item.start,item.end,'end');input.dispatchEvent(new Event('input',{bubbles:true}));};suggestions.append(button);}suggestions.classList.toggle('hidden',!options.length);},100);}
+  input.addEventListener('input',()=>{saveDraft(word.id,input.value);recommend();});input.addEventListener('compositionstart',()=>{composing=true;recommend();});input.addEventListener('compositionend',()=>{composing=false;recommend();});input.addEventListener('blur',()=>{clearTimeout(timer);suggestions.replaceChildren();suggestions.classList.add('hidden');});
+  save.onclick=async()=>{
+   if(save.disabled)return;const raw=input.value,sentence=raw.trim();if(!sentence){status.textContent='ใส่ประโยคก่อน';input.focus();return;}if(sentence.length>4000){status.textContent='ใช้ประโยคสั้นกว่า 4,000 ตัวอักษร';return;}save.disabled=true;
+   try{const current=(await getAll()).find(item=>item.id===word.id);if(!current)throw Error('คำนี้ถูกลบแล้ว');await put({...current,practiceHistory:[...(current.practiceHistory||[]),{at:now(),mode:'writing',createdSentence:sentence,assisted:true}]});if(request!==run)return;status.textContent='บันทึกแล้ว';if(input.value===raw){input.value='';saveDraft(word.id,'');}window.SmartCompletion?.learnSentence(sentence);}
+   catch(error){if(request===run)status.textContent='บันทึกไม่สำเร็จ: '+error.message;}finally{if(request===run)save.disabled=false;}
+  };
+ }
+ function open(id){selectedId=id||'';page('writing');}
+ return {render,open};
+})();
